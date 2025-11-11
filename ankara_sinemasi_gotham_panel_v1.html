@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ankara Sineması Haritası</title>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+/* -------- FONT TANIMLARI -------- */
+@font-face {
+  font-family: 'Gotham';
+  src: url('https://raw.githubusercontent.com/sezerkina/deneme2/main/fonts/Gotham%20Book.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('https://raw.githubusercontent.com/sezerkina/deneme2/main/fonts/Gotham%20Book%20Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('https://raw.githubusercontent.com/sezerkina/deneme2/main/fonts/Gotham%20Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('https://raw.githubusercontent.com/sezerkina/deneme2/main/fonts/Gotham%20Medium%20Italic.ttf') format('truetype');
+  font-weight: 500;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('https://raw.githubusercontent.com/sezerkina/deneme2/main/fonts/Gotham%20Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+body {
+  margin: 0;
+  font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
+  background: #f9f9f9;
+}
+
+/* -------- PANEL -------- */
+#sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 340px;
+  height: 100%;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  padding: 15px 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+#sidebar.closed {
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+#toggle-btn {
+  position: absolute;
+  top: 15px;
+  right: -25px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-left: none;
+  width: 25px;
+  height: 25px;
+  border-radius: 0 5px 5px 0;
+  cursor: pointer;
+  text-align: center;
+  line-height: 25px;
+  font-weight: bold;
+  color: #333;
+}
+#sidebar h1 {
+  font-weight: 700;
+  font-size: 12pt;
+  margin: 0 0 10px;
+}
+#sidebar p.description {
+  font-weight: 400;
+  font-style: italic;
+  font-size: 8pt;
+  color: #555;
+  margin-bottom: 12px;
+}
+#search {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 8pt;
+  font-style: italic;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+/* -------- LİSTELER -------- */
+.film {
+  margin-bottom: 10px;
+}
+.film-title {
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 11pt;
+  color: #333;
+  margin-bottom: 3px;
+}
+.mekan-list {
+  margin-left: 15px;
+  list-style-type: circle;
+  padding-left: 10px;
+  display: none;
+}
+.mekan-list li {
+  font-weight: 400;
+  font-size: 9pt;
+  margin-bottom: 3px;
+  cursor: pointer;
+}
+
+/* -------- HARİTA -------- */
+#map {
+  position: absolute;
+  top: 0;
+  left: 340px;
+  right: 0;
+  bottom: 0;
+  transition: left 0.3s ease;
+}
+#sidebar.closed + #map {
+  left: 0;
+}
+</style>
+</head>
+
+<body>
+<div id="sidebar">
+  <div id="toggle-btn">◀</div>
+  <h1>Ankara Sineması Haritası: Filmler ve Mekânlar 🎬</h1>
+  <p class="description">
+    Bu çalışma Ankara Üniversitesi Sosyal Bilimler Enstitüsü Radyo Televizyon ve Sinema Anabilim Dalı'nda 
+    Prof. Dr. S. Ruken Öztürk danışmanlığında Sezer Ahmet Kına tarafından yürütülen 
+    <i>"Sinemada Kentin Dönüşümünü Seyretmek: Ankara Örneği"</i> başlıklı doktora tezi kapsamında hazırlanmıştır.
+  </p>
+  <input type="text" id="search" placeholder="Haritada ara">
+  <div id="film-list"></div>
+</div>
+<div id="map"></div>
+
+<script>
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('toggle-btn');
+toggleBtn.onclick = () => {
+  sidebar.classList.toggle('closed');
+  toggleBtn.textContent = sidebar.classList.contains('closed') ? '▶' : '◀';
+};
+
+// Harita oluştur
+const map = L.map('map').setView([39.93, 32.85], 11);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+}).addTo(map);
+
+// GeoJSON verisini yükle
+fetch('merged_from_kmz.geojson')
+  .then(res => res.json())
+  .then(data => {
+    const films = {};
+
+    // GeoJSON özelliklerini gruplandır
+    L.geoJSON(data, {
+      onEachFeature: (feature, layer) => {
+        const filmName = feature.properties.film || "Belirtilmemiş Film";
+        const mekanName = feature.properties.name || "Belirtilmemiş Mekan";
+        const popupContent = `
+          <strong>${filmName}</strong><br>${mekanName}<br>
+          ${feature.properties.description || ''}<br>
+          ${feature.properties.image ? `<img src="${feature.properties.image}" style="width:100%;margin-top:5px;">` : ''}
+        `;
+        layer.bindPopup(popupContent);
+        if (!films[filmName]) films[filmName] = [];
+        films[filmName].push({ name: mekanName, layer: layer });
+      }
+    }).addTo(map);
+
+    // Sol panel listesi
+    const filmList = document.getElementById('film-list');
+    Object.entries(films).forEach(([film, mekanlar]) => {
+      const filmDiv = document.createElement('div');
+      filmDiv.classList.add('film');
+      const title = document.createElement('div');
+      title.classList.add('film-title');
+      title.textContent = film;
+      const ul = document.createElement('ul');
+      ul.classList.add('mekan-list');
+      mekanlar.forEach(m => {
+        const li = document.createElement('li');
+        li.textContent = m.name;
+        li.onclick = () => {
+          map.setView(m.layer.getLatLng(), 15);
+          m.layer.openPopup();
+        };
+        ul.appendChild(li);
+      });
+      title.onclick = () => {
+        ul.style.display = (ul.style.display === 'none' || ul.style.display === '') ? 'block' : 'none';
+      };
+      filmDiv.appendChild(title);
+      filmDiv.appendChild(ul);
+      filmList.appendChild(filmDiv);
+    });
+
+    // Arama
+    document.getElementById('search').addEventListener('input', e => {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('.film').forEach(f => {
+        const filmTitle = f.querySelector('.film-title').textContent.toLowerCase();
+        const anyMatch = [...f.querySelectorAll('li')].some(li => li.textContent.toLowerCase().includes(q));
+        f.style.display = (filmTitle.includes(q) || anyMatch) ? 'block' : 'none';
+      });
+    });
+  });
+</script>
+</body>
+</html>
