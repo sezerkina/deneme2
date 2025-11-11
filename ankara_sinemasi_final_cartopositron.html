@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ankara Filmleri — Etkileşimli Harita</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  html,body{height:100%;margin:0;font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial;}
+  .container{display:flex; height:100vh; width:100vw;}
+  #sidebar{width:320px; min-width:220px; max-width:420px; overflow:auto; background:#f8fafc; border-right:1px solid #e6edf3; padding:12px 10px;}
+  #map{flex:1; position:relative;}
+  h1{font-size:16px;margin:6px 0 12px 0;}
+  h2{font-size:14px;margin:8px 0;}
+  .film-section{margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e6edf3;}
+  .film-title{font-weight:700;cursor:pointer;margin:0 0 6px 0;color:#0f172a;}
+  .places{list-style:none;padding-left:12px;margin:0;display:block;}
+  .places li{cursor:pointer;padding:4px 0;color:#0f172a;}
+  .places li:hover{text-decoration:underline;}
+  .muted{color:#6b7280;font-size:13px;}
+  .popup-content img{max-width:260px;height:auto;display:block;margin-top:8px;border-radius:6px;}
+  @media (max-width:800px){#sidebar{width:40%;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <aside id="sidebar">
+    <h1>🎬 Filmler ve Mekânlar</h1>
+    <div class="muted">Soldaki listeden bir filme tıklayın, altındaki mekânları görüntüleyin ve mekâna tıklayarak haritada gezinin.</div>
+    <div id="filmList" style="margin-top:10px;"></div>
+    <div style="margin-top:12px;" class="muted">Harita altyapısı: Carto Positron (etiketli)</div>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// GeoJSON dosyasını aynı klasörden yükleyecek şekilde hazırlanmıştır.
+(async function(){
+  const map = L.map('map', {zoomControl:true});
+
+  const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {attribution: '© OpenStreetMap contributors, © Carto', maxZoom: 22});
+  carto.addTo(map);
+
+  // containers
+  window.layerGroup = L.layerGroup().addTo(map);
+
+  // helper to create popup html
+  function renderPopup(feature){
+    const props = feature.properties || {};
+    const folder = props.folder || '';
+    const film = folder.split('/')[0] || '';
+    const name = props.name || '';
+    const desc = props.description || '';
+    let html = '<div class="popup-content">';
+    if(film) html += '<div style="font-weight:700;margin-bottom:4px;">' + escapeHtml(film) + '</div>';
+    if(name) html += '<div style="font-weight:600;margin-bottom:4px;">' + escapeHtml(name) + '</div>';
+    if(desc) html += '<div>' + desc + '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+
+  // load geojson
+  let data;
+  try{
+    const res = await fetch('merged_from_kmz.geojson');
+    data = await res.json();
+  }catch(e){ console.error('GeoJSON yüklenemedi', e); alert('GeoJSON yüklenemedi: ' + e.message); return; }
+
+  // group by film
+  const grouped = {};
+  data.features.forEach(f => {
+    const film = ((f.properties && f.properties.folder) || 'Bilinmeyen Film').split('/')[0].trim();
+    if(!grouped[film]) grouped[film] = [];
+    grouped[film].push(f);
+  });
+
+  // add features to map
+  const featureToLayer = new Map();
+  const geojsonLayer = L.geoJSON(data, {
+    pointToLayer: function(feature, latlng){ 
+      const iconProp = feature.properties && feature.properties.icon && feature.properties.icon.url;
+      if(iconProp && iconProp.startsWith('data:')){
+        const icon = L.icon({iconUrl: iconProp, iconSize:[32,32]});
+        return L.marker(latlng, {icon: icon});
+      }
+      return L.marker(latlng);
+    },
+    style: function(feature){ 
+      if(feature.properties && feature.properties.lineStyle){ 
+        return { color: feature.properties.lineStyle.color || '#2563eb', weight: feature.properties.lineStyle.width || 3, opacity: feature.properties.lineStyle.opacity || 1.0 };
+      }
+      return { color:'#f59e0b', weight:2, fillColor:'#fde68a', fillOpacity:0.4 };
+    },
+    onEachFeature: function(feature, layer){
+      layer.feature = feature;
+      const popupHtml = renderPopup(feature);
+      layer.bindPopup(popupHtml, {maxWidth:320});
+      window.layerGroup.addLayer(layer);
+      featureToLayer.set(feature, layer);
+    }
+  }).addTo(window.layerGroup);
+
+  // fit map
+  try{
+    const bounds = window.layerGroup.getBounds();
+    if(bounds.isValid()) map.fitBounds(bounds.pad(0.1));
+    else map.setView([39.924, 32.854], 11);
+  }catch(e){ map.setView([39.924,32.854],11); }
+
+  // build sidebar
+  const filmListDiv = document.getElementById('filmList');
+  Object.keys(grouped).sort().forEach(film => {
+    const section = document.createElement('div');
+    section.className = 'film-section';
+
+    const title = document.createElement('div');
+    title.className = 'film-title';
+    title.textContent = film;
+    section.appendChild(title);
+
+    const ul = document.createElement('ul');
+    ul.className = 'places';
+    grouped[film].forEach(feature => {
+      const li = document.createElement('li');
+      li.textContent = feature.properties && (feature.properties.name || '(Adsız Mekân)');
+      li.onclick = function(e){ 
+        e.stopPropagation();
+        const geom = feature.geometry;
+        if(geom.type === 'Point'){ map.setView([geom.coordinates[1], geom.coordinates[0]], 16); }
+        else if(geom.type === 'LineString'){ const c = geom.coordinates[0]; map.setView([c[1], c[0]], 15); }
+        else if(geom.type === 'Polygon'){ const c = geom.coordinates[0][0]; map.setView([c[1], c[0]], 15); }
+        const layer = featureToLayer.get(feature);
+        if(layer) layer.openPopup();
+      };
+      ul.appendChild(li);
+    });
+
+    // toggle sublist
+    ul.style.display = 'none';
+    title.onclick = () => { ul.style.display = ul.style.display === 'none' ? 'block' : 'none'; map.invalidateSize(); };
+
+    section.appendChild(ul);
+    filmListDiv.appendChild(section);
+  });
+
+})();
+</script>
+</body>
+</html>
