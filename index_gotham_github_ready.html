@@ -1,0 +1,129 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ankara Sineması Haritası</title>
+
+<!-- Yerel Gotham Font Tanımları -->
+<style>
+@font-face {
+  font-family: 'Gotham';
+  src: url('fonts/Gotham-Book.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('fonts/Gotham-BookItalic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('fonts/Gotham-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('fonts/Gotham-MediumItalic.woff2') format('woff2');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('fonts/Gotham-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Gotham', sans-serif;
+  background: #f7f9fb;
+  overflow: hidden;
+}
+
+/* Sidebar ve arayüz elemanları */
+#sidebar {
+  position: absolute;
+  left: 0; top: 0;
+  width: 340px; height: 100%;
+  background: #fff;
+  border-right: 1px solid #e6eef6;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.06);
+  padding: 18px;
+  box-sizing: border-box;
+  overflow: auto;
+}
+#sidebar h1 {
+  font-weight: 700;
+  font-size: 13pt;
+  margin: 4px 0 8px;
+}
+#sidebar .description {
+  font-weight: 400;
+  font-style: italic;
+  font-size: 9pt;
+  color: #445;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+#map { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 1; }
+
+.leaflet-popup-content img {
+  max-width: 260px;
+  height: auto;
+  border-radius: 6px;
+  margin-top: 6px;
+  display: block;
+}
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+<aside id="sidebar">
+  <h1>Ankara Sineması Haritası 🎬</h1>
+  <div class="description">
+    Bu çalışma, Ankara Üniversitesi Sosyal Bilimler Enstitüsü Radyo Televizyon ve Sinema Anabilim Dalı'nda 
+    Prof. Dr. S. Ruken Öztürk danışmanlığında Sezer Ahmet Kına tarafından yürütülen 
+    <i>"Sinemada Kentin Dönüşümünü Seyretmek: Ankara Örneği"</i> başlıklı doktora tezi kapsamında hazırlanmıştır.
+  </div>
+</aside>
+<div id="map"></div>
+
+<script>
+// Harita oluştur
+const map = L.map('map').setView([39.93, 32.85], 11);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap contributors &copy; Carto',
+  maxZoom: 22
+}).addTo(map);
+
+// Popup örneği (test için)
+const marker = L.marker([39.93, 32.85]).addTo(map);
+const popupContent = `
+  <div style="font-family:'Gotham';">
+    <div style="font-weight:700; font-size:11pt; margin-bottom:4px;">Kızılay Meydanı</div>
+    <div style="font-weight:500; font-size:10pt; margin-bottom:6px;">Ankara, Türkiye</div>
+    <div style="font-weight:400; font-size:9pt; margin-bottom:8px;">
+      Burası Ankara'nın en merkezi noktasıdır. Sinema salonları, kafeler ve kültürel etkinliklerle çevrilidir.
+    </div>
+  </div>
+`;
+marker.bindPopup(popupContent);
+</script>
+</body>
+</html>
