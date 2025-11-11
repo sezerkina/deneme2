@@ -17,10 +17,57 @@
 html,body{height:100%;margin:0;font-family:Gotham, "Helvetica Neue", Arial, sans-serif;background:#f7f9fb;}
 
 /* -------- SIDEBAR -------- */
-#sidebar{position:absolute;left:0;top:0;width:340px;height:100%;background:#fff;border-right:1px solid #e6eef6;box-shadow:2px 0 6px rgba(0,0,0,0.06);padding:18px;box-sizing:border-box;overflow:auto;transition:all .32s ease;z-index:1200;}
-#sidebar.closed{width:44px;padding:8px 6px;}
-#toggle-btn{position:absolute;top:10px;left:10px;width:28px;height:28px;background:#fff;border:1px solid #d0d7df;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2000;box-shadow:0 1px 3px rgba(0,0,0,0.15);}
+#sidebar{
+  position:absolute;
+  left:0;top:0;
+  width:340px;height:100%;
+  background:#fff;
+  border-right:1px solid #e6eef6;
+  box-shadow:2px 0 6px rgba(0,0,0,0.06);
+  padding:18px;
+  box-sizing:border-box;
+  overflow:auto;
+  transition:all .35s ease;
+  z-index:1200;
+}
+#sidebar.closed{
+  transform:translateX(-100%);
+  box-shadow:none;
+  border-right:none;
+  padding:0;
+  width:0;
+}
+
+#toggle-btn{
+  position:absolute;
+  top:16px;
+  right:-14px;
+  width:26px;
+  height:48px;
+  background:#fff;
+  border:1px solid #d0d7df;
+  border-left:none;
+  border-radius:0 6px 6px 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  z-index:2000;
+  box-shadow:0 1px 3px rgba(0,0,0,0.15);
+  transition:background 0.2s ease;
+}
 #toggle-btn:hover{background:#f3f4f6;}
+#toggle-btn span{
+  font-size:14pt;
+  line-height:1;
+  color:#0f172a;
+  user-select:none;
+  transition:transform .3s ease;
+}
+#sidebar.closed + #toggle-btn span{
+  transform:rotate(180deg);
+}
+
 #sidebar h1{font-weight:700;font-size:12pt;margin:4px 0 8px;}
 #sidebar .description{font-weight:400;font-style:italic;font-size:8pt;color:#445;line-height:1.2;margin-bottom:12px;}
 #search{width:100%;padding:6px 8px;font-size:8pt;font-style:italic;border:1px solid #d0d7df;border-radius:6px;margin-bottom:12px;box-sizing:border-box;}
@@ -33,12 +80,13 @@ html,body{height:100%;margin:0;font-family:Gotham, "Helvetica Neue", Arial, sans
 .mekan-list li:hover{text-decoration:underline;}
 
 /* -------- HARİTA -------- */
-#map{position:absolute;left:340px;top:0;right:0;bottom:0;transition:left .32s ease;z-index:1;}
-#sidebar.closed ~ #map{left:44px;}
-.leaflet-control-zoom{position:absolute !important;bottom:20px;right:20px;} /* zoom sağ alt köşe */
-
-/* responsive */
-@media (max-width:800px){ #sidebar{width:260px;} #map{left:260px;} }
+#map{
+  position:absolute;
+  left:0;top:0;right:0;bottom:0;
+  transition:left .35s ease;
+  z-index:1;
+}
+.leaflet-control-zoom{position:absolute !important;bottom:20px;right:20px;}
 
 /* popup images */
 .leaflet-popup-content img{max-width:260px;height:auto;border-radius:6px;margin-top:6px;display:block;}
@@ -56,8 +104,8 @@ html,body{height:100%;margin:0;font-family:Gotham, "Helvetica Neue", Arial, sans
   <input id="search" placeholder="Haritada ara" aria-label="Haritada ara">
   <div id="film-list"></div>
 </aside>
+<div id="toggle-btn" title="Paneli Aç/Kapat"><span>◂</span></div>
 <div id="map"></div>
-<div id="toggle-btn" title="Paneli Aç/Kapat">◀</div>
 
 <script>
 // Yardımcı: "folder" bilgisinden film adını temizle
@@ -76,7 +124,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   maxZoom: 22
 }).addTo(map);
 
-// Zoom kontrolünü sağ alt köşeye taşır
+// Zoom kontrolünü sağ alt köşeye taşı
 map.zoomControl.setPosition('bottomright');
 
 let films = {};
@@ -167,14 +215,18 @@ fetch('merged_from_kmz.geojson')
     });
   });
 
-  // Panel aç/kapa butonu
+  // Panel aç/kapa
   const toggle=document.getElementById('toggle-btn');
   const sidebar=document.getElementById('sidebar');
   toggle.addEventListener('click',(e)=>{
     e.stopPropagation();
     sidebar.classList.toggle('closed');
-    if(sidebar.classList.contains('closed')){ toggle.textContent='▶'; }
-    else { toggle.textContent='◀'; }
+    const arrow=toggle.querySelector('span');
+    if(sidebar.classList.contains('closed')){
+      arrow.textContent='▸';
+    } else {
+      arrow.textContent='◂';
+    }
     map.invalidateSize();
   });
 
